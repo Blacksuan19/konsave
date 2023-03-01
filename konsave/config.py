@@ -162,11 +162,9 @@ class Config:
         self.save = self.sections.get("save")
         self.export = self.sections.get("export")
 
-    def __repr__(self) -> str:
-        return f"Config({self.__dict__})"
-
-    def __str__(self) -> str:
-        return self.__repr__()
+    def save_config(self, config_file: Path):
+        """Save the config to a file"""
+        config_file.write_text(yaml.dump(self.to_dict()))
 
     def to_dict(self):
         """Convert a Config to a dict (json representation)"""
@@ -174,6 +172,12 @@ class Config:
             section_name: section.to_dict()
             for section_name, section in self.sections.items()
         }
+
+    def __repr__(self) -> str:
+        return f"Config({self.__dict__})"
+
+    def __str__(self) -> str:
+        return self.__repr__()
 
 
 # testing code
