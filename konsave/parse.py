@@ -3,7 +3,8 @@ This module parses conf.yaml
 """
 import os
 import re
-from konsave.consts import HOME, CONFIG_DIR, SHARE_DIR, BIN_DIR
+
+from konsave.consts import BIN_DIR, CONFIG_DIR, HOME, SHARE_DIR
 
 
 def ends_with(grouped_regex, path) -> str:

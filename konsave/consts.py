@@ -2,24 +2,25 @@
 This module contains all the variables for konsave
 """
 import os
+from pathlib import Path
+
 from konsave import __version__
 
-
-HOME = os.path.expandvars("$HOME")
-CONFIG_DIR = os.path.join(HOME, ".config")
-SHARE_DIR = os.path.join(HOME, ".local/share")
-BIN_DIR = os.path.join(HOME, ".local/bin")
-KONSAVE_DIR = os.path.join(CONFIG_DIR, "konsave")
-PROFILES_DIR = os.path.join(KONSAVE_DIR, "profiles")
-CONFIG_FILE = os.path.join(KONSAVE_DIR, "conf.yaml")
+HOME: Path = Path.home()
+CONFIG_DIR = HOME / ".config"
+SHARE_DIR = HOME / ".local/share"
+BIN_DIR = HOME / ".local/bin"
+KONSAVE_DIR = CONFIG_DIR / "konsave"
+PROFILES_DIR = KONSAVE_DIR / "profiles"
+CONFIG_FILE = KONSAVE_DIR / "conf.yaml"
 
 EXPORT_EXTENSION = ".knsv"
 
 # Create PROFILES_DIR if it doesn't exist
-if not os.path.exists(PROFILES_DIR):
+if not PROFILES_DIR.exists():
     os.makedirs(PROFILES_DIR)
 
-list_of_profiles = os.listdir(PROFILES_DIR)
+list_of_profiles = [x.name for x in PROFILES_DIR.iterdir() if x.is_dir()]
 length_of_lop = len(list_of_profiles)
 
 VERSION = __version__
