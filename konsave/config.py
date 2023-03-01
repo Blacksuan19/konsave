@@ -12,33 +12,31 @@ from konsave.parse import TOKEN_SYMBOL, tokens
 class StripEntry:
     """An entry in the strip list"""
 
-    file_name: str
     keys: List[str]
     groups: List[str]
 
     @classmethod
-    def from_dict(cls, name: str, data: dict):
+    def from_dict(cls, data: dict):
         """Create a StripEntry from a dict"""
-        return cls(file_name=name, groups=data["groups"], keys=data["keys"])
+        return cls(groups=data["groups"], keys=data["keys"])
 
     def to_dict(self):
         """Convert a StripEntry to a dict (json representation)"""
-        return {self.file_name: {"groups": self.groups, "keys": self.keys}}
+        return {"groups": self.groups, "keys": self.keys}
 
 
 @dataclass
 class ConfEntry:
     """An entry in the config file inside a section"""
 
-    name: str
-    location: str
+    location: Path
     entries: List[str]
-    strips: List[StripEntry]
+    strips: Dict[str, StripEntry]
 
     def __post_init__(self):
         # set strips as class attributes
-        for strip in self.strips:
-            setattr(self, strip.file_name, strip)
+        for strip_name, strip in self.strips.items():
+            setattr(self, strip_name, strip)
 
         # keep a copy of the original location for to_dict()
         self.localtion_original = self.location
@@ -54,8 +52,8 @@ class ConfEntry:
         # expand vriables in location
         for key, value in tokens["keywords"]["dict"].items():
             word = TOKEN_SYMBOL + key
-            if word in self.location:
-                self.location = self.location.replace(word, value)
+            if word in self.location.name:
+                self.location = Path(self.location.name.replace(word, value))
 
     def parse_functions(self):
         """
@@ -66,48 +64,45 @@ class ConfEntry:
         raw_regex = f"\\{TOKEN_SYMBOL}{functions['raw_regex']}"
         grouped_regex = f"\\{TOKEN_SYMBOL}{functions['grouped_regex']}"
 
-        matches = re.findall(raw_regex, self.location)
+        matches = re.findall(raw_regex, self.location.name)
         for match in matches:
             func = re.search(grouped_regex, match).group(1)
             if func in functions["dict"]:
-                self.location = functions["dict"][func](grouped_regex, self.location)
+                self.location = Path(
+                    functions["dict"][func](grouped_regex, self.location.name)
+                )
 
     @classmethod
-    def from_dict(cls, name: str, data: dict):
+    def from_dict(cls, data: dict):
         """Create a ConfEntry from a dict"""
-        subs = []
+        subs = {}
         if "strip" in data:
             sub_keys = list(data["strip"].keys())
-            subs = [
-                StripEntry.from_dict(name=sub_keys[i], data=data["strip"][sub_keys[i]])
+            subs = {
+                sub_keys[i]: StripEntry.from_dict(data=data["strip"][sub_keys[i]])
                 for i in range(len(sub_keys))
-            ]
+            }
 
         return cls(
-            name=name,
-            location=data["location"],
-            entries=data["entries"],
-            strips=subs,
+            location=Path(data["location"]), entries=data["entries"], strips=subs
         )
 
     def to_dict(self):
         """Convert a ConfEntry to a dict (json representation)"""
         to_dict = {
-            self.name: {
-                "location": self.localtion_original,
-                "entries": self.entries,
-            }
+            "location": self.localtion_original,
+            "entries": self.entries,
         }
 
         strips = {}
-        for strip in self.strips:
-            strips.update(strip.to_dict())
+        for strip_name, strip in self.strips.items():
+            strips[strip_name] = strip.to_dict()
 
         # remove empty strips
         if not strips:
             return to_dict
 
-        to_dict[self.name]["strip"] = strips
+        to_dict["strip"] = strips
 
         return to_dict
 
@@ -116,30 +111,29 @@ class ConfEntry:
 class Section:
     """A top level section in config (only save and export)"""
 
-    name: str
-    entries: List[ConfEntry]
+    entries: Dict[str, ConfEntry]
 
     def __post_init__(self):
         """Set each entry as a class attribute"""
-        for entry in self.entries:
-            setattr(self, entry.name, entry)
+        for entry_name, entry in self.entries.items():
+            setattr(self, entry_name, entry)
 
     @classmethod
-    def from_dict(cls, name: str, data: dict):
+    def from_dict(cls, data: dict):
         """Create a section from a dict"""
         sub_keys = list(data.keys())
-        subs = [
-            ConfEntry.from_dict(name=sub_keys[i], data=data[sub_keys[i]])
+        subs = {
+            sub_keys[i]: ConfEntry.from_dict(data=data[sub_keys[i]])
             for i in range(len(sub_keys))
-        ]
-        return cls(name=name, entries=subs)
+        }
+        return cls(entries=subs)
 
     def to_dict(self):
         """Convert a Section to a dict (json representation)"""
         entries = {}
-        for entry in self.entries:
-            entries.update(entry.to_dict())
-        return {self.name: entries}
+        for entry_name, entry in self.entries.items():
+            entries[entry_name] = entry.to_dict()
+        return entries
 
 
 class Config:
@@ -163,8 +157,7 @@ class Config:
         data = convert_none_to_empty_list(data)
         keys = list(data.keys())
         self.sections = {
-            keys[i]: Section.from_dict(name=keys[i], data=data[keys[i]])
-            for i in range(len(keys))
+            keys[i]: Section.from_dict(data[keys[i]]) for i in range(len(keys))
         }
         self.save = self.sections.get("save")
         self.export = self.sections.get("export")
@@ -178,8 +171,8 @@ class Config:
     def to_dict(self):
         """Convert a Config to a dict (json representation)"""
         return {
-            **self.save.to_dict(),
-            **self.export.to_dict(),
+            section_name: section.to_dict()
+            for section_name, section in self.sections.items()
         }
 
 
@@ -187,5 +180,7 @@ class Config:
 if __name__ == "__main__":
     conf_file = Path("konsave/conf_kde.yaml")
     data = yaml.safe_load(conf_file.read_text())
+    print(data)
+    print(Config(config_file=conf_file).to_dict())
 
     print(data == Config(config_file=conf_file).to_dict())
