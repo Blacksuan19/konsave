@@ -1,2 +1,0 @@
-[MASTER]
-disable=broad-except, too-many-locals, too-many-branches
