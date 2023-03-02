@@ -263,7 +263,7 @@ def export(
 
     for entry_name, conf_entry in konsave_config_export.entries.items():
         for entry in conf_entry.entries:
-            source = Path(conf_entry.location) / entry
+            source = conf_entry.location / entry
             dest = export_path_export / entry
             log(f'Exporting "{entry}"...')
             if source.exists():
@@ -320,7 +320,7 @@ def import_profile(zip_path: Path):
         path = temp_path / "export" / entry_name
         for entry_name in conf_entry.entries:
             source = path / entry_name
-            dest = Path(conf_entry.location) / entry_name
+            dest = conf_entry.location / entry_name
             log(f'Importing "{entry_name}"...')
             if source.exists():
                 if source.is_dir():
